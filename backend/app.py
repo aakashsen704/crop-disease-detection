@@ -15,7 +15,7 @@ app = Flask(__name__,
             template_folder='../frontend/templates',
             static_folder='../frontend/static')
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///E:/crop-disease-website/database/crops.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../database/crops.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'frontend/static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -23,8 +23,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 CORS(app)
 db = SQLAlchemy(app)
 
-# Ensure upload folder exists
+# Ensure necessary directories exist
+os.makedirs('../database', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs('../frontend/static/images', exist_ok=True)
 
 # Load ML Model
 print("🔄 Loading model... Please wait...")
@@ -171,34 +173,45 @@ DEFAULT_INFO = {
 
 def predict_disease(image_path):
     """Predict disease from image"""
-    start_time = time.time()
-    
-    # Load and preprocess image
-    image = Image.open(image_path)
-    inputs = processor(images=image, return_tensors="pt")
-    
-    # Make prediction
-    with torch.no_grad():
-        outputs = model(**inputs)
-        logits = outputs.logits
-    
-    probabilities = torch.nn.functional.softmax(logits, dim=-1)
-    confidence, predicted_idx = torch.max(probabilities, 1)
-    
-    predicted_class = model.config.id2label[predicted_idx.item()]
-    confidence_score = confidence.item() * 100
-    
-    end_time = time.time()
-    prediction_time = end_time - start_time
-    
-    disease_data = DISEASE_INFO.get(predicted_class, DEFAULT_INFO)
-    
-    return {
-        'disease_name': predicted_class,
-        'confidence': confidence_score,
-        'prediction_time': prediction_time,
-        'disease_info': disease_data
-    }
+    try:
+        start_time = time.time()
+        
+        # Load and preprocess image
+        image = Image.open(image_path)
+        
+        # Convert to RGB (fixes channel dimension error)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        inputs = processor(images=image, return_tensors="pt")
+        
+        # Make prediction
+        with torch.no_grad():
+            outputs = model(**inputs)
+            logits = outputs.logits
+        
+        probabilities = torch.nn.functional.softmax(logits, dim=-1)
+        confidence, predicted_idx = torch.max(probabilities, 1)
+        
+        predicted_class = model.config.id2label[predicted_idx.item()]
+        confidence_score = confidence.item() * 100
+        
+        end_time = time.time()
+        prediction_time = end_time - start_time
+        
+        disease_data = DISEASE_INFO.get(predicted_class, DEFAULT_INFO)
+        
+        return {
+            'disease_name': predicted_class,
+            'confidence': confidence_score,
+            'prediction_time': prediction_time,
+            'disease_info': disease_data
+        }
+    except Exception as e:
+        print(f"ERROR in predict_disease: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise Exception(f"Model prediction failed: {str(e)}")
 
 # Routes
 @app.route('/')
@@ -239,35 +252,42 @@ def register():
 # API Routes
 @app.route('/api/detect', methods=['POST'])
 def api_detect():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Save uploaded file
+        filename = secure_filename(f"{int(time.time())}_{file.filename}")
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Predict disease
+        result = predict_disease(filepath)
+        
+        # Save detection to database if user is logged in
+        if 'user_id' in session:
+            detection = Detection(
+                user_id=session['user_id'],
+                image_path=filepath,
+                disease_name=result['disease_name'],
+                confidence=result['confidence']
+            )
+            db.session.add(detection)
+            db.session.commit()
+            result['detection_id'] = detection.id
+        
+        result['image_url'] = f"/static/uploads/{filename}"
+        return jsonify(result)
     
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    # Save uploaded file
-    filename = secure_filename(f"{int(time.time())}_{file.filename}")
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    
-    # Predict disease
-    result = predict_disease(filepath)
-    
-    # Save detection to database if user is logged in
-    if 'user_id' in session:
-        detection = Detection(
-            user_id=session['user_id'],
-            image_path=filepath,
-            disease_name=result['disease_name'],
-            confidence=result['confidence']
-        )
-        db.session.add(detection)
-        db.session.commit()
-        result['detection_id'] = detection.id
-    
-    result['image_url'] = f"/static/uploads/{filename}"
-    return jsonify(result)
+    except Exception as e:
+        print(f"ERROR in disease detection: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Detection failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -377,5 +397,6 @@ def api_stats():
     })
 
 if __name__ == '__main__':
-    # Database will be created automatically on first request
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)
