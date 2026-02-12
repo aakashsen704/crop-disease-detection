@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CropGuard AI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-seedling"></i>
+                <span>CropGuard AI</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/detect">Detect Disease</a></li>
+                <li><a href="/disease-database">Disease Database</a></li>
+                <li><a href="/consultation">Expert Consultation</a></li>
+                <li><a href="/dashboard" class="active">Dashboard</a></li>
+                <li><a href="#" class="btn-login" onclick="logout()">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="container">
+            <div class="dashboard-header">
+                <div>
+                    <h1>Dashboard</h1>
+                    <p>Monitor your crop health and detection history</p>
+                </div>
+                <button class="btn btn-primary" onclick="location.href='/detect'">
+                    <i class="fas fa-plus"></i>
+                    New Detection
+                </button>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalDetections">0</h3>
+                        <p>Total Detections</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon blue">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalCrops">0</h3>
+                        <p>Crops Monitored</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon orange">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="healthyCrops">0</h3>
+                        <p>Healthy Crops</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon red">
+                        <i class="fas fa-disease"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="infectedCrops">0</h3>
+                        <p>Need Attention</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard Grid -->
+            <div class="dashboard-grid">
+                <!-- Detection History -->
+                <div class="dashboard-card span-2">
+                    <div class="card-header">
+                        <h2><i class="fas fa-history"></i> Recent Detections</h2>
+                        <button class="btn-text" onclick="viewAllHistory()">View All</button>
+                    </div>
+                    <div class="detection-list" id="detectionHistory">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No detections yet</p>
+                            <button class="btn btn-primary" onclick="location.href='/detect'">
+                                Start Detection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disease Distribution Chart -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-pie"></i> Disease Distribution</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="diseaseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- My Crops -->
+                <div class="dashboard-card span-2">
+                    <div class="card-header">
+                        <h2><i class="fas fa-leaf"></i> My Crops</h2>
+                        <button class="btn btn-primary" onclick="showAddCropModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Crop
+                        </button>
+                    </div>
+                    <div class="crops-grid" id="cropsList">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="empty-state">
+                            <i class="fas fa-seedling"></i>
+                            <p>No crops added yet</p>
+                            <button class="btn btn-primary" onclick="showAddCropModal()">
+                                Add Your First Crop
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+                    </div>
+                    <div class="quick-actions">
+                        <a href="/detect" class="action-btn">
+                            <i class="fas fa-camera"></i>
+                            <span>New Detection</span>
+                        </a>
+                        <a href="/disease-database" class="action-btn">
+                            <i class="fas fa-database"></i>
+                            <span>Browse Diseases</span>
+                        </a>
+                        <a href="/consultation" class="action-btn">
+                            <i class="fas fa-user-md"></i>
+                            <span>Consult Expert</span>
+                        </a>
+                        <a href="#" class="action-btn" onclick="exportData()">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Crop Modal -->
+    <div id="addCropModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Crop</h2>
+                <button class="btn-icon" onclick="closeAddCropModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addCropForm" onsubmit="addCrop(event)">
+                <div class="form-group">
+                    <label>Crop Type</label>
+                    <select name="crop_type" required>
+                        <option value="">Select crop type</option>
+                        <option value="Tomato">Tomato</option>
+                        <option value="Potato">Potato</option>
+                        <option value="Corn">Corn</option>
+                        <option value="Apple">Apple</option>
+                        <option value="Grape">Grape</option>
+                        <option value="Cherry">Cherry</option>
+                        <option value="Peach">Peach</option>
+                        <option value="Pepper">Pepper</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" name="location" placeholder="e.g., Field A, North Section">
+                </div>
+                <div class="form-group">
+                    <label>Planted Date</label>
+                    <input type="date" name="planted_date">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddCropModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Crop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

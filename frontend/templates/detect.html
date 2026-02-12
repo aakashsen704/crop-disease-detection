@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Detection - CropGuard AI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/detect.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation (same as index.html) -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-seedling"></i>
+                <span>CropGuard AI</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/detect" class="active">Detect Disease</a></li>
+                <li><a href="/disease-database">Disease Database</a></li>
+                <li><a href="/consultation">Expert Consultation</a></li>
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/login" class="btn-login">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="detect-container">
+        <div class="container">
+            <div class="page-header">
+                <h1>AI Disease Detection</h1>
+                <p>Upload an image of your crop to detect diseases instantly</p>
+            </div>
+
+            <div class="detection-layout">
+                <!-- Upload Section -->
+                <div class="upload-section">
+                    <div class="upload-card" id="uploadCard">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h3>Upload Crop Image</h3>
+                        <p>Drag and drop or click to browse</p>
+                        <input type="file" id="imageInput" accept="image/*" hidden>
+                        <button class="btn btn-primary" onclick="document.getElementById('imageInput').click()">
+                            <i class="fas fa-folder-open"></i>
+                            Choose File
+                        </button>
+                        <div class="upload-tips">
+                            <p><i class="fas fa-info-circle"></i> Tips for best results:</p>
+                            <ul>
+                                <li>Use good lighting</li>
+                                <li>Focus on affected area</li>
+                                <li>Avoid blurry images</li>
+                                <li>Supported: JPG, PNG</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div class="preview-card" id="previewCard" style="display: none;">
+                        <div class="preview-header">
+                            <h3>Image Preview</h3>
+                            <button class="btn-icon" onclick="clearImage()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <img id="previewImage" src="" alt="Preview">
+                        <button class="btn btn-primary btn-block" id="detectBtn" onclick="detectDisease()">
+                            <i class="fas fa-search"></i>
+                            Detect Disease
+                        </button>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div class="loading-card" id="loadingCard" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <h3>Analyzing Image...</h3>
+                        <p>Our AI is examining your crop</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <div class="result-card">
+                        <div class="result-header">
+                            <div class="result-icon" id="resultIcon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <h2 id="diseaseName">Disease Name</h2>
+                                <div class="confidence-badge" id="confidenceBadge">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span id="confidenceScore">95%</span> Confidence
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="severity-indicator" id="severityIndicator">
+                            <span class="severity-label">Severity:</span>
+                            <span class="severity-value" id="severityValue">Medium</span>
+                        </div>
+
+                        <div class="result-section">
+                            <h3><i class="fas fa-info-circle"></i> Description</h3>
+                            <p id="diseaseDescription"></p>
+                        </div>
+
+                        <div class="result-section">
+                            <h3><i class="fas fa-stethoscope"></i> Symptoms</h3>
+                            <p id="diseaseSymptoms"></p>
+                        </div>
+
+                        <div class="result-section">
+                            <h3><i class="fas fa-prescription-bottle"></i> Treatment Options</h3>
+                            <div class="treatment-tabs">
+                                <button class="tab-btn active" onclick="showTab('chemical')">
+                                    <i class="fas fa-flask"></i> Chemical
+                                </button>
+                                <button class="tab-btn" onclick="showTab('organic')">
+                                    <i class="fas fa-leaf"></i> Organic
+                                </button>
+                            </div>
+                            <div class="tab-content">
+                                <div id="chemicalTab" class="tab-pane active">
+                                    <ul id="treatmentList"></ul>
+                                </div>
+                                <div id="organicTab" class="tab-pane">
+                                    <p id="organicSolution"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="result-section">
+                            <h3><i class="fas fa-shield-alt"></i> Prevention Measures</h3>
+                            <ul id="preventionList"></ul>
+                        </div>
+
+                        <div class="result-actions">
+                            <button class="btn btn-secondary" onclick="downloadReport()">
+                                <i class="fas fa-download"></i>
+                                Download Report
+                            </button>
+                            <button class="btn btn-outline" onclick="saveToHistory()">
+                                <i class="fas fa-save"></i>
+                                Save to History
+                            </button>
+                            <button class="btn btn-primary" onclick="location.href='/consultation'">
+                                <i class="fas fa-user-md"></i>
+                                Consult Expert
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/detect.js"></script>
+</body>
+</html>
